@@ -17,7 +17,6 @@ class Cube(object):
     one_key = False
     three_key = False
     state = "WALKING"
-    angle = 0
     contador=200
     desconto=0
     colidiu=False
@@ -26,9 +25,6 @@ class Cube(object):
     pontuacao = 0
     velocidade_meteoro = 0.6
     pontuacao_meta = 150
-    upper_angle=0
-    cube_angle = 0
-    cube_upper = 3
     x = 10
     y = 500
     speed = 10
@@ -68,7 +64,7 @@ class Cube(object):
         glLightfv(GL_LIGHT0,GL_POSITION,[-12,5,0,1])
         
         glTranslatef(0,-0.5,0)   
-        gluLookAt(12.46,20,-24.48, math.sin(math.radians(self.angle)),self.upper_angle,math.cos(math.radians(self.angle)) *-1, 0,1,0)
+        gluLookAt(12.46,20,-24.48,0,0,0,1,0)
         self.ground.render_texture(self.surface_id,((0,0),(2,0),(2,2),(0,2)))
 
     def render_cube(self):
@@ -251,17 +247,6 @@ class Cube(object):
             self.move_bottom_left()
         elif self.three_key:
             self.move_bottom_right()
-        
-        #posicao da camera dos lados
-        if self.cube_angle >= 360:
-            self.cube_angle = 0
-        else:
-            self.cube_angle += 0.5
-        
-        if self.cube_upper <= 0:
-            self.cube_upper = 3
-        else:
-            self.cube_upper -= 0.3
     
     def keyup(self):
         self.left_key = False
