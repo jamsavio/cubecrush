@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 
 import pygame
 from OpenGL.GL import *
@@ -9,75 +8,71 @@ import graphics
 import random
 
 class Cube(object):
-    ''' control keys'''
     left_key = False
     right_key = False
     up_key = False
     down_key = False
-
     seven_key = False
     nine_key = False
     one_key = False
     three_key = False
-    ''''''
-    
-    estado_cubo = "WALKING"
-    
-    velocidade_meteoro = 0.6
-    contador = 200
-    desconto = 0
-
-    pontuacao = 0
-    pontuacao_meta = 150
-
-    colidiu = False
-    game_over = False
+    state = "WALKING"
+    angle = 0
+    contador=200
+    desconto=0
+    colidiu=False
     perdeu_sound = False
-
+    game_over = False
+    pontuacao = 0
+    velocidade_meteoro = 0.6
+    pontuacao_meta = 150
+    upper_angle=0
+    cube_angle = 0
+    cube_upper = 3
+    x = 10
+    y = 500
+    speed = 10
     buracox=-12
     buracoz=-12
     buracoy=-3
 
     #-------------------------------------
     def __init__(self):
-        self.lua_id = graphics.load_texture("texture/lua.jpg")
-        self.superficie_id = graphics.load_texture("texture/ConcreteTriangles.png")
-        self.preto_id = graphics.load_texture("texture/preto.png")
-
-        #---Coordenadas---[x,y,z]-----------------------------
+        self.vertices = []
+        self.faces = []
+        self.lua = graphics.load_texture("texture/lua.jpg")
+        self.surface_id = graphics.load_texture("texture/ConcreteTriangles.png")
+        self.preto = graphics.load_texture("texture/preto.png")
+        #---Coordinates----[x,y,z]-----------------------------
         self.coordinates = [0,1,0]
         self.z_random = random.randrange(-31,-9,1)
         self.x_random = random.randrange(-11,11,1)
         self.meteoro_coord = [self.x_random,22,self.z_random]
-
-        #Carrega os vértices e as normais do objeto 
-        self.tabuleiro = graphics.ObjLoader("obj/plane.txt")
-        self.lua = graphics.ObjLoader("obj/moon.txt")
+        self.ground = graphics.ObjLoader("obj/plane.txt")
+        self.cenario = graphics.ObjLoader("obj/cenario.txt")
+        self.pyramid = graphics.ObjLoader("obj/scene.txt")
         self.cube = graphics.ObjLoader("obj/cube.txt")
         self.buraco = graphics.ObjLoader("obj/buraco.txt")
     
     def render_scene(self):
-        #limpar buffers anteriores
         glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT)
 
         glMatrixMode(GL_MODELVIEW)
-        #substitua a matriz atual pela matriz identidade
         glLoadIdentity()
 
-        #iluminação ambiente
-        glLightModelfv(GL_LIGHT_MODEL_AMBIENT,[0,0,0,1.0])
-
+        #add luz ambiente:
+        glLightModelfv(GL_LIGHT_MODEL_AMBIENT,[0.2,0.2,0.2,1.0])
+        
         #add luz posicionada:
         glLightfv(GL_LIGHT0,GL_DIFFUSE,[2,2,2,1])
         glLightfv(GL_LIGHT0,GL_POSITION,[-12,5,0,1])
         
-        gluLookAt(12.46, 20, -24.48, 0, 0, 0, 0, 1, 0)
-        self.tabuleiro.render_texture(self.superficie_id,((0,0),(2,0),(2,2),(0,2)))
-        self.lua.render_texture(self.lua_id,((0,0),(1,0),(1,1),(0,1)))
+        glTranslatef(0,-0.5,0)   
+        gluLookAt(12.46,20,-24.48, math.sin(math.radians(self.angle)),self.upper_angle,math.cos(math.radians(self.angle)) *-1, 0,1,0)
+        self.ground.render_texture(self.surface_id,((0,0),(2,0),(2,2),(0,2)))
 
     def render_cube(self):
         glPushMatrix() 
-        #translada o cubo para a coordenada atual 
         glTranslatef(self.coordinates[0],self.coordinates[1],self.coordinates[2])
         self.cube.render_scene()
         glPopMatrix()
@@ -87,11 +82,16 @@ class Cube(object):
         glTranslatef(self.meteoro_coord[0],self.meteoro_coord[1],self.meteoro_coord[2])
         self.cube.render_scene()
         glPopMatrix()
+    
+    def render_cenario(self):
+        glPushMatrix()
+        self.cenario.render_texture(self.lua,((0,0),(1,0),(1,1),(0,1)))
+        glPopMatrix()
 
     def render_buraco_meteoro(self):
         glPushMatrix()
         glTranslatef(self.buracox,self.buracoy,self.buracoz)
-        self.buraco.render_texture(self.preto_id,((0,0),(1,0),(1,1),(0,1)))  
+        self.buraco.render_texture(self.preto,((0,0),(1,0),(1,1),(0,1)))  
         glPopMatrix()
 
     def caindo(self):
@@ -113,7 +113,6 @@ class Cube(object):
             self.coordinates[1] -= 1
             self.game_over=True
 
-        #verifica se o cubo caiu no buraco
         elif (self.coordinates[2] <= self.buracoz + 3 and self.coordinates[2] >= self.buracoz - 3) and self.buracoz != -12:
             if(self.coordinates[0] <= self.buracox + 3 and self.coordinates[0] >= self.buracox - 3 and self.coordinates[1] <= 1):
                 self.coordinates[1] -= 1
@@ -123,8 +122,7 @@ class Cube(object):
             caindo.play(0)
 
     def meteoro_caindo(self):
-            colidiu_play = pygame.mixer.Sound("audio/explosion.wav") 
-
+            colidiu_play = pygame.mixer.Sound("audio/explosion.wav")
             if self.contador <= 0:
                 if self.meteoro_coord[1] >= 1:
                     self.meteoro_coord[1] -= self.velocidade_meteoro
@@ -132,96 +130,95 @@ class Cube(object):
 
                     if self.colidiu == False:
                         colidiu_x=False
-
-                        if self.meteoro_coord[1] <= 2:
-                            if self.meteoro_coord[0] <= self.coordinates[0]+1 and self.meteoro_coord[0] >= self.coordinates[0]-1:
-                                colidiu_x=True
-                            elif self.meteoro_coord[0] >= self.coordinates[0]-1 and self.meteoro_coord[0] <= self.coordinates[0]+1:
-                                colidiu_x=True
-                        
+                        if self.meteoro_coord[0] <= self.coordinates[0] and self.meteoro_coord[0] >= self.coordinates[0]-1 and self.meteoro_coord[1] <= 2:
+                            colidiu_x=True
+                        elif self.meteoro_coord[0] >= self.coordinates[0] and self.meteoro_coord[0] <= self.coordinates[0]+1 and self.meteoro_coord[1] <= 2:
+                            colidiu_x=True
                         if colidiu_x == True:
-                            if self.meteoro_coord[2] <= self.coordinates[2]+1 and self.meteoro_coord[2] >= self.coordinates[2]-1:
+                            if self.meteoro_coord[2] <= self.coordinates[2] and self.meteoro_coord[2] >= self.coordinates[2]-1:
                                 self.game_over=True
                                 self.colidiu=True
                                 colidiu_play.play(0)
 
-                            elif self.meteoro_coord[2] >= self.coordinates[2]-1 and self.meteoro_coord[2] <= self.coordinates[2]+1:
+                            elif self.meteoro_coord[2] >= self.coordinates[2] and self.meteoro_coord[2] <= self.coordinates[2] and self.meteoro_coord[2] <= self.coordinates[2]+1:
                                 self.game_over=True
                                 self.colidiu=True
                                 colidiu_play.play(0)
                 else:
                     self.z_random = random.randrange(-31,-9,1)
                     self.x_random = random.randrange(-11,11,1)
-                    #teste de colisão 
-                    #self.meteoro_coord = [5, 22, -22]
                     self.meteoro_coord = [self.x_random, 22, self.z_random]
                     self.contador=200-self.desconto
             else:
                 self.contador-=1
             print("Pontuacao: "+str(self.pontuacao))
     
-    def mover_frente(self):
-        self.coordinates[2] += 0.3  
+    def move_forward(self):
+        self.coordinates[2] += 0.3 * math.cos(math.radians(self.angle))
+        self.coordinates[0] -= 0.3 * math.sin(math.radians(self.angle))
 
-    def mover_atras(self):
-        self.coordinates[2] -= 0.3
+    def move_back(self):
+        self.coordinates[2] -= 0.3 * math.cos(math.radians(self.angle))
+        self.coordinates[0] += 0.3 * math.sin(math.radians(self.angle))
             
-    def mover_esquerda(self):
-        self.coordinates[0] += 0.3 
+    def move_left(self):
+        self.coordinates[0] += 0.3 * math.cos(math.radians(self.angle))
+        self.coordinates[2] += 0.3 * math.sin(math.radians(self.angle))
+        
+    def move_right(self):
+        self.coordinates[0] -= 0.3 * math.cos(math.radians(self.angle))
+        self.coordinates[2] -= 0.3 * math.sin(math.radians(self.angle))
 
-    def mover_direita(self):
-        self.coordinates[0] -= 0.3 
-
-    def mover_diagonal_cima_direita(self):
-        self.coordinates[2] += 0.3 
-        self.coordinates[0] += 0.3 
+    def move_top_right(self):
+        self.coordinates[2] += 0.3 * math.cos(math.radians(self.angle))
+        self.coordinates[0] += 0.3 * math.cos(math.radians(self.angle))
     
-    def mover_diagonal_cima_esquerda(self):
-        self.coordinates[2] += 0.3 
-        self.coordinates[0] -= 0.3 
+    def move_top_left(self):
+        self.coordinates[2] += 0.3 * math.cos(math.radians(self.angle))
+        self.coordinates[0] -= 0.3 * math.cos(math.radians(self.angle))
     
-    def mover_diagonal_baixo_direita(self):
-        self.coordinates[2] -= 0.3 
-        self.coordinates[0] -= 0.3 
+    def move_bottom_right(self):
+        self.coordinates[2] -= 0.3 * math.cos(math.radians(self.angle))
+        self.coordinates[0] -= 0.3 * math.cos(math.radians(self.angle))
 
-    def mover_diagonal_baixo_esquerda(self):
-        self.coordinates[2] -= 0.3 
-        self.coordinates[0] += 0.3 
+    def move_bottom_left(self):
+        self.coordinates[2] -= 0.3 * math.cos(math.radians(self.angle))
+        self.coordinates[0] += 0.3 * math.cos(math.radians(self.angle))
 
     def isjumping(self):
         jump = pygame.mixer.Sound("audio/jump.wav")
         if self.coordinates[1] >= 1:
-            if self.estado_cubo == 'JUMPING UP':
+            if self.state == 'JUMPING UP':
                 self.coordinates[1] += 0.6
                 self.coordinates[2] += 1.8
                 if(self.coordinates[1] >= 3):
                     jump.play(0)
-                    self.estado_cubo = 'DOWN'
-            if self.estado_cubo == 'JUMPING LEFT':
+                    self.state = 'DOWN'
+            if self.state == 'JUMPING LEFT':
                 self.coordinates[1] += 0.6
                 self.coordinates[0] += 1.8
                 if(self.coordinates[1] >= 3):
                     jump.play(0)
-                    self.estado_cubo = 'DOWN'
-            if self.estado_cubo == 'JUMPING RIGHT':
+                    self.state = 'DOWN'
+            if self.state == 'JUMPING RIGHT':
                 self.coordinates[1] += 0.6
                 self.coordinates[0] -= 1.8
                 if(self.coordinates[1] >= 3):
                     jump.play(0)
-                    self.estado_cubo = 'DOWN'
-            if self.estado_cubo == 'JUMPING DOWN':
+                    self.state = 'DOWN'
+            if self.state == 'JUMPING DOWN':
                 self.coordinates[1] += 0.6
                 self.coordinates[2] -= 1.8
                 if(self.coordinates[1] >= 3):
                     jump.play(0)
-                    self.estado_cubo = 'DOWN'   
-            elif self.estado_cubo == 'DOWN':
+                    self.state = 'DOWN'   
+            elif self.state == 'DOWN':
                 if self.coordinates[1] >= 0:
                     self.coordinates[1] -= 0.6
                     if self.coordinates[1] == 1:
-                        self.estado_cubo = 'WALKING'
+                        self.state = 'WALKING'
                 else:
-                    self.estado_cubo = 'WALKING'
+                    self.state = 'WALKING'
 
     def calcular_pontuacao(self):
         levelup = pygame.mixer.Sound("audio/levelup.wav")
@@ -239,21 +236,32 @@ class Cube(object):
 
     def update(self):
         if self.left_key:
-            self.mover_esquerda()
+            self.move_left()
         elif self.right_key:
-            self.mover_direita()
+            self.move_right()
         elif self.up_key:
-            self.mover_frente()
+            self.move_forward()
         elif self.down_key:
-            self.mover_atras()
+            self.move_back()
         elif self.seven_key:
-            self.mover_diagonal_cima_direita()
+            self.move_top_right()
         elif self.nine_key:
-            self.mover_diagonal_cima_esquerda()
+            self.move_top_left()
         elif self.one_key:
-            self.mover_diagonal_baixo_esquerda()
+            self.move_bottom_left()
         elif self.three_key:
-            self.mover_diagonal_baixo_direita()
+            self.move_bottom_right()
+        
+        #posicao da camera dos lados
+        if self.cube_angle >= 360:
+            self.cube_angle = 0
+        else:
+            self.cube_angle += 0.5
+        
+        if self.cube_upper <= 0:
+            self.cube_upper = 3
+        else:
+            self.cube_upper -= 0.3
     
     def keyup(self):
         self.left_key = False
@@ -275,11 +283,12 @@ def main():
     screen = pygame.display.set_mode((640,480),pygame.DOUBLEBUF|pygame.OPENGLBLIT)
     pygame.display.set_caption("Cube-Crush")
     done = False
+    
+    clock = pygame.time.Clock()
 
     glMatrixMode(GL_PROJECTION)
     glLoadIdentity()
     gluPerspective(45,640.0/480.0,0.1,200.0)
-    
     glEnable(GL_DEPTH_TEST)
     glEnable(GL_LIGHTING)
     glEnable(GL_LIGHT0)
@@ -297,47 +306,43 @@ def main():
         cube.calcular_pontuacao()
             
         # --- Main event loop
-        for event in pygame.event.get(): 
-            if event.type == pygame.QUIT: 
-                done = True 
+        for event in pygame.event.get(): # Usuario fez algo
+            if event.type == pygame.QUIT: # Se o usuario clicar em fechar
+                done = True # Sinalize que terminamos, entao saimos desse loop
             
             if event.type == pygame.KEYDOWN:
                 if cube.colidiu == False:
                     if event.key == pygame.K_a or event.key == pygame.K_KP4:
-                        cube.mover_esquerda()
+                        cube.move_left()
                         cube.left_key = True
                     elif event.key == pygame.K_d or event.key == pygame.K_KP6:
-                        cube.mover_direita()
+                        cube.move_right()
                         cube.right_key = True
                     elif event.key == pygame.K_w or event.key == pygame.K_KP8:
-                        cube.mover_frente()
+                        cube.move_forward()
                         cube.up_key = True
                     elif event.key == pygame.K_UP:
-                            #pulando com a seta de cima
-                            cube.estado_cubo = "JUMPING UP"
+                            cube.state = "JUMPING UP"
                     elif event.key == pygame.K_DOWN:
-                            #pulando com a seta de baixo
-                            cube.estado_cubo = "JUMPING DOWN"
+                            cube.state = "JUMPING DOWN"
                     elif event.key == pygame.K_LEFT:
-                            #pulando com a seta da esquerda
-                            cube.estado_cubo = "JUMPING LEFT"
+                            cube.state = "JUMPING LEFT"
                     elif event.key == pygame.K_RIGHT:
-                            #pulando com a seta da direita
-                            cube.estado_cubo = "JUMPING RIGHT"
+                            cube.state = "JUMPING RIGHT"
                     elif event.key == pygame.K_s or event.key == pygame.K_KP2:
-                        cube.mover_atras()
+                        cube.move_back()
                         cube.down_key = True
                     elif event.key == pygame.K_KP7:
-                        cube.mover_diagonal_cima_direita()
+                        cube.move_top_right()
                         cube.seven_key = True
                     elif event.key == pygame.K_KP9:
-                        cube.mover_diagonal_cima_esquerda()
+                        cube.move_top_left()
                         cube.nine_key = True
                     elif event.key == pygame.K_KP1:
-                        cube.mover_diagonal_baixo_direita()
+                        cube.move_bottom_right()
                         cube.one_key = True
                     elif event.key == pygame.K_KP3:
-                        cube.mover_diagonal_baixo_esquerda()
+                        cube.move_bottom_left()
                         cube.three_key = True
                 if event.key == pygame.K_SPACE:
                     del cube
@@ -349,28 +354,23 @@ def main():
                 cube.keyup()
 
         cube.update()
-
-        #renderiza a cena (piso, lua, iluminação, posição da câmera)
+        clock.tick(60)
+        
         cube.render_scene()
-
-        #serve que o jogador possa observar o cubo caindo até o final da tela
         if cube.coordinates[1] > -50 and cube.colidiu == False:
             cube.render_cube()
-
         cube.render_meteoro()
-
-        #se o meteoro atingiu o solo então faz o buraco na mesma coordenada do meteoro
         if cube.meteoro_coord[1] < 1 and cube.meteoro_coord[1] >= 0:
             cube.buracox=cube.meteoro_coord[0]
             cube.buracoy=-0.4
             cube.buracoz=cube.meteoro_coord[2]
         cube.render_buraco_meteoro()
+        cube.render_cenario()
 
-        #dispara som 'game over' quando não tiver tocando outro som (caso tenha sido game over)
         if cube.game_over == True and cube.perdeu_sound == False and pygame.mixer.get_busy() == False:
             perdeu = pygame.mixer.Sound("audio/game_over.wav")
             perdeu.play(0)
-            cube.perdeu_sound = True #para não repetir
+            cube.perdeu_sound = True
 
         pygame.display.flip()
 
@@ -379,4 +379,3 @@ def main():
 
 if __name__ == '__main__':
 	main()
-
