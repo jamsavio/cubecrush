@@ -362,7 +362,7 @@ def main():
         cube.render_meteoro()
         if cube.meteoro_coord[1] < 1 and cube.meteoro_coord[1] >= 0:
             cube.buracox=cube.meteoro_coord[0]
-            cube.buracoy=-0.4
+            cube.buracoy=0
             cube.buracoz=cube.meteoro_coord[2]
         cube.render_buraco_meteoro()
         cube.render_cenario()
@@ -379,3 +379,4 @@ def main():
 
 if __name__ == '__main__':
 	main()
+
